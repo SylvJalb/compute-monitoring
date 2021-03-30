@@ -24,17 +24,14 @@ int main(int argc, char ** argv) {
             // On effectue réellement l'action du père qu'après avoir créé les nbLect lecteurs
             if (numLect == nbLect) {
                 printf("Je suis le père %d\n", getpid());
-                close(tube[0]); // Fermeture lecture
-                char c;
-                while ((c=getchar()) != EOF) {
-                    // Ecriture tube
-                    if((c<='z')&&(c>='a')) {
-                        write(tube[1], &c, 1);//ecriture dans tube
-                    }
+                close(tube[1]); // Fermeture lecture
+                char buf;
+                while(read(tube[0], &buf, sizeof(buf))!=0) {
+                    printf("%c", buf);
                     // Arrête du père quand les fils sont arrêtés
-                    else if(atoi(&c) == 1) {
+                    if(0) {
                         sleep(1); // On laisse les fils terminer
-                        close(tube[1]);// On ferme tube, les fils ne liront plus
+                        close(tube[0]);// On ferme tube, les fils ne liront plus
                         wait(NULL); // On attend la mort des fils
                         printf("Je suis le pere, je meurs\n");
                         exit(EXIT_SUCCESS); // On meurt
