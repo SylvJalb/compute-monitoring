@@ -14,7 +14,7 @@ PROG = prog
 all : $(PROG)
 
 $(PROG) : $(OBJ) #Compilation du programme
-	$(CC) $^ -o $@ -lm
+	$(CC) $^ -o $@
 
 ./bin/%.o : ./src/%.c #Compilation des objets
 	$(CC) -c $^ -o $@
