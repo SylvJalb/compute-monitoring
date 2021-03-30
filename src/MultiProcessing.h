@@ -9,7 +9,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#define BUF_SIZE 200
+
 int tube[2];
-void fils(int n);
+void fils(int n, int* somme);
+void pere(int* numLect, int nbLect);
 
 #endif

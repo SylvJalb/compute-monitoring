@@ -21,29 +21,12 @@ int main(int argc, char ** argv) {
         } while(pid == -1 && essai <= nbEssai);
         // Action du père
         if (essai != nbEssai && pid != 0) {
-            // On effectue réellement l'action du père qu'après avoir créé les nbLect lecteurs
-            if (numLect == nbLect) {
-                printf("Je suis le père %d\n", getpid());
-                close(tube[1]); // Fermeture lecture
-                char buf;
-                while(read(tube[0], &buf, sizeof(buf))!=0) {
-                    printf("%c", buf);
-                    // Arrête du père quand les fils sont arrêtés
-                    if(0) {
-                        sleep(1); // On laisse les fils terminer
-                        close(tube[0]);// On ferme tube, les fils ne liront plus
-                        wait(NULL); // On attend la mort des fils
-                        printf("Je suis le pere, je meurs\n");
-                        exit(EXIT_SUCCESS); // On meurt
-                    }
-                }
-            }
-            // On incrémente nbLect pour savoir où on en est
-            numLect++;
+            pere(&numLect, nbLect);
         }
         // Action des fils
         else if (pid == 0) {
-            fils(numLect);
+            int somme = 0;
+            fils(numLect, &somme);
         }
     } while(pid != 0 && numLect <= nbLect);
     return 0;
