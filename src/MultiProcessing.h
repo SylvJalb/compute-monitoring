@@ -10,7 +10,6 @@
 #include <unistd.h>
 
 int tube[2];
-int somme = 0;
 void fils(int n);
 
 #endif
