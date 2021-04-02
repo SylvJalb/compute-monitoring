@@ -21,12 +21,8 @@ void fils(int n, int* somme) {
     _exit(pid);
 }
 
-void evilMonkey(){
-    sleep(15);
-    printf("KILL");
-}
-
 void pere(int* numLect, int nbLect) {
+    char str_monkey[BUF_SIZE];
     FILE *fp;
     int i;
     int size;
@@ -43,14 +39,12 @@ void pere(int* numLect, int nbLect) {
             evilMonkey();
             exit(EXIT_SUCCESS);
         }
-
-        int iterTimeHit = (alea(4))*2;
- 
-        printf("L'evil monkey va frapper à l'itération %d\n\n", iterTimeHit);
         
         printf("Père     \t(mon id -> %d)\n", getpid());
 
         close(tube[1]); // Fermeture lecture
+        close(tubeMonkey[0]); // Ouverture lecture
+
         char buf[BUF_SIZE];
         while(read(tube[0], buf, sizeof(buf))!=0) {
             
@@ -81,16 +75,16 @@ void pere(int* numLect, int nbLect) {
 
             size = sizeof(child_list) / sizeof(child_list[0]);
 
-           
-            //int targetedSonNumber = alea(size); //Remplacer val par la taille de la liste des fils
-            //int targetedSon = child_list[targetedSonNumber];
-            //printf("L'evil monkey va frapper le fils %d\n", targetedSon);
+            sprintf(str_monkey, "%d_",size);
 
             // Affichage des processus fils
             for (int j = 0; j < size; j++) {
                 printf("%d\n", child_list[j]);
+                sprintf(str_monkey, "|%d|",child_list[j]);
             }
-            
+            write(tubeMonkey[1], str_monkey, BUF_SIZE_MONKEY);
+            close(tubeMonkey[1]);
+
             printf("%s", buf);
             
             // Arrête du père quand les fils sont arrêtés
@@ -108,6 +102,23 @@ void pere(int* numLect, int nbLect) {
     }
     // On incrémente nbLect pour savoir où on en est
     *numLect = *numLect + 1;
+}
+
+void evilMonkey(){
+
+    sleep(15);
+
+    close(tubeMonkey[0]); // Fermeture lecture
+    char buf_Monkey[BUF_SIZE_MONKEY];
+
+        while(read(tubeMonkey[0], buf_Monkey, sizeof(buf_Monkey))!=0) {
+            
+        }
+
+    int targetedSonNumber = alea(size); //Remplacer val par la taille de la liste des fils
+    int targetedSon = child_list[targetedSonNumber];
+    printf("L'evil monkey va frapper le fils %d\n", targetedSon);
+    printf("KILL");
 }
 
 
