@@ -22,7 +22,8 @@ void fils(int n, int* somme) {
 }
 
 void evilMonkey(){
-    
+    sleep(15);
+    printf("KILL");
 }
 
 void pere(int* numLect, int nbLect) {
@@ -40,6 +41,7 @@ void pere(int* numLect, int nbLect) {
         pid_t pid_bis = fork();
         if(pid_bis == 0){
             evilMonkey();
+            exit(EXIT_SUCCESS);
         }
 
         int iterTimeHit = (alea(4))*2;
@@ -100,7 +102,7 @@ void pere(int* numLect, int nbLect) {
                 exit(EXIT_SUCCESS); // On meurt
             }
             tempActivitePere ++;
-            printf("Temps écoulé du père : %d\n", tempActivitePere);
+            printf("\tTemps écoulé du père : %d\n", tempActivitePere);
 
         }
     }
