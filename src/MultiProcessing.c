@@ -21,20 +21,37 @@ void fils(int n, int* somme) {
     _exit(pid);
 }
 
+void evilMonkey(){
+    
+}
+
 void pere(int* numLect, int nbLect) {
     FILE *fp;
     int i;
     int size;
+    int tempActivitePere = 0;
     // Définition de la commande pour obtenir les processus fils
     char str[50] = "ps -C prog --format '%P %p'";
 
+
     // On effectue réellement l'action du père qu'après avoir créé les nbLect lecteurs
     if (*numLect == nbLect) {
+
+        pid_t pid_bis = fork();
+        if(pid_bis == 0){
+            evilMonkey();
+        }
+
+        int iterTimeHit = (alea(4))*2;
+ 
+        printf("L'evil monkey va frapper à l'itération %d\n\n", iterTimeHit);
+        
         printf("Père     \t(mon id -> %d)\n", getpid());
+
         close(tube[1]); // Fermeture lecture
         char buf[BUF_SIZE];
         while(read(tube[0], buf, sizeof(buf))!=0) {
-
+            
             // Exécution de la commande ps
             fp = popen(str, "r");
             if (fp == NULL)
@@ -62,6 +79,11 @@ void pere(int* numLect, int nbLect) {
 
             size = sizeof(child_list) / sizeof(child_list[0]);
 
+           
+            //int targetedSonNumber = alea(size); //Remplacer val par la taille de la liste des fils
+            //int targetedSon = child_list[targetedSonNumber];
+            //printf("L'evil monkey va frapper le fils %d\n", targetedSon);
+
             // Affichage des processus fils
             for (int j = 0; j < size; j++) {
                 printf("%d\n", child_list[j]);
@@ -77,8 +99,18 @@ void pere(int* numLect, int nbLect) {
                 printf("Le pere meurt\n");
                 exit(EXIT_SUCCESS); // On meurt
             }
+            tempActivitePere ++;
+            printf("Temps écoulé du père : %d\n", tempActivitePere);
+
         }
     }
     // On incrémente nbLect pour savoir où on en est
     *numLect = *numLect + 1;
+}
+
+
+int alea(int taille){
+    int res;
+    res = rand() % taille;
+    return res;
 }
