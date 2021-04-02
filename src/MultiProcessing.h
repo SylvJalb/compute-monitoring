@@ -12,8 +12,10 @@
 #include <string.h>
 
 #define BUF_SIZE 200
+#define BUF_SIZE_MONKEY 200
 
 int tube[2];
+int tubeMonkey[2];
 void fils(int n, int* somme);
 void pere(int* numLect, int nbLect);
 
