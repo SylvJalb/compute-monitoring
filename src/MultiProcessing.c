@@ -22,13 +22,53 @@ void fils(int n, int* somme) {
 }
 
 void pere(int* numLect, int nbLect) {
+    FILE *fp;
+    int i;
+    int size;
+    // Définition de la commande pour obtenir les processus fils
+    char str[50] = "ps -C prog --format '%P %p'";
+
     // On effectue réellement l'action du père qu'après avoir créé les nbLect lecteurs
     if (*numLect == nbLect) {
         printf("Père     \t(mon id -> %d)\n", getpid());
         close(tube[1]); // Fermeture lecture
         char buf[BUF_SIZE];
         while(read(tube[0], buf, sizeof(buf))!=0) {
+
+            // Exécution de la commande ps
+            fp = popen(str, "r");
+            if (fp == NULL)
+            {
+                printf("Erreur d'execution de popen()\n");
+            }
+
+            // On recrée les tableaux pour ne pas avoir de conflit mémoire
+            char parentID[256];
+            char processID[256];
+            int child_list[nbLect];
+            i = 0;
+
+            // On récupère les process id
+            while (fscanf(fp, "%s %s", parentID, processID) != EOF)
+            {
+                // On vérifie que la ligne récupérée est bien un ID de processus
+                if (strcmp(processID, "PID") && atoi(processID) != getpid()) {
+                    child_list[i] = atoi(processID);
+                    i++;
+                }
+            }
+
+            pclose(fp);
+
+            size = sizeof(child_list) / sizeof(child_list[0]);
+
+            // Affichage des processus fils
+            for (int j = 0; j < size; j++) {
+                printf("%d\n", child_list[j]);
+            }
+            
             printf("%s", buf);
+            
             // Arrête du père quand les fils sont arrêtés
             if(0) {
                 sleep(1); // On laisse les fils terminer
