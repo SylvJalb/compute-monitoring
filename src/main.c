@@ -1,5 +1,6 @@
 #include "MultiProcessing.h"
 int main(int argc, char ** argv) {
+    system("@cls||clear");
     int numLect = 1; // Numéro des lecteurs
     int nbLect; // Nb de lecteur
     int nbEssai = 10; // Nb d'essai pour faire un fork au cas où ça rate

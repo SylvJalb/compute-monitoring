@@ -5,7 +5,7 @@ void fils(int n, int* somme) {
     short pid = getpid();
     int tempActivite = 0;
     printf("Fils n°%d\t(mon id -> %d ,  id de mon père -> %d)\n", n, pid, getppid());
-    close (tube[0]); // Fermeture écriture
+    close (tube[0]); // Fermeture lecture
     while(1) {
         *somme = *somme + 1;
         tempActivite ++;
@@ -23,8 +23,19 @@ void fils(int n, int* somme) {
 
 void evilMonkey(){
     sleep(15);
-    printf("KILL");
+    //printf("KILL");
 }
+
+
+void userLecture(){
+    close (tube[0]); // Fermeture lecture
+    char c[BUF_SIZE] = "  |";
+    while(1){
+        c[0] = getchar();
+        write(tube[1], c, BUF_SIZE);
+    }
+}
+
 
 void pere(int* numLect, int nbLect) {
     FILE *fp;
@@ -37,10 +48,17 @@ void pere(int* numLect, int nbLect) {
 
     // On effectue réellement l'action du père qu'après avoir créé les nbLect lecteurs
     if (*numLect == nbLect) {
-
+        // Création du processus Evil Monkey
         pid_t pid_bis = fork();
         if(pid_bis == 0){
             evilMonkey();
+            exit(EXIT_SUCCESS);
+        }
+
+        // Création du processus qui lit ce que l'utilisateur veut
+        pid_bis = fork();
+        if(pid_bis == 0){
+            userLecture();
             exit(EXIT_SUCCESS);
         }
 
@@ -50,61 +68,84 @@ void pere(int* numLect, int nbLect) {
         
         printf("Père     \t(mon id -> %d)\n", getpid());
 
-        close(tube[1]); // Fermeture lecture
+        close(tube[1]); // Fermeture ecriture
+        char **save_children = creerTableau2DChar(nbLect, BUF_SIZE);
         char buf[BUF_SIZE];
         while(read(tube[0], buf, sizeof(buf))!=0) {
-            
-            // Exécution de la commande ps
-            fp = popen(str, "r");
-            if (fp == NULL)
-            {
-                printf("Erreur d'execution de popen()\n");
-            }
-
-            // On recrée les tableaux pour ne pas avoir de conflit mémoire
-            char parentID[256];
-            char processID[256];
-            int child_list[nbLect];
-            i = 0;
-
-            // On récupère les process id
-            while (fscanf(fp, "%s %s", parentID, processID) != EOF)
-            {
-                // On vérifie que la ligne récupérée est bien un ID de processus
-                if (strcmp(processID, "PID") && atoi(processID) != getpid()) {
-                    child_list[i] = atoi(processID);
-                    i++;
+            if(buf[2] == '|') {
+                system("@cls||clear");
+                for(int numero_fils = 0; numero_fils < nbLect; numero_fils++){
+                    printf("%s\n", save_children[numero_fils]);
                 }
             }
+            else {
+                // Exécution de la commande ps
+                fp = popen(str, "r");
+                if (fp == NULL)
+                {
+                    printf("Erreur d'execution de popen()\n");
+                }
 
-            pclose(fp);
+                // On recrée les tableaux pour ne pas avoir de conflit mémoire
+                char parentID[256];
+                char processID[256];
+                int child_list[nbLect];
+                i = 0;
 
-            size = sizeof(child_list) / sizeof(child_list[0]);
+                // On récupère les process id
+                while (fscanf(fp, "%s %s", parentID, processID) != EOF)
+                {
+                    // On vérifie que la ligne récupérée est bien un ID de processus
+                    if (strcmp(processID, "PID") && atoi(processID) != getpid()) {
+                        child_list[i] = atoi(processID);
+                        i++;
+                    }
+                }
 
-           
-            //int targetedSonNumber = alea(size); //Remplacer val par la taille de la liste des fils
-            //int targetedSon = child_list[targetedSonNumber];
-            //printf("L'evil monkey va frapper le fils %d\n", targetedSon);
+                pclose(fp);
 
-            // Affichage des processus fils
-            for (int j = 0; j < size; j++) {
-                printf("%d\n", child_list[j]);
-            }
+                size = sizeof(child_list) / sizeof(child_list[0]);
+
             
-            printf("%s", buf);
-            
-            // Arrête du père quand les fils sont arrêtés
-            if(0) {
-                sleep(1); // On laisse les fils terminer
-                close(tube[0]);// On ferme tube, les fils ne liront plus
-                wait(NULL); // On attend la mort des fils
-                printf("Le pere meurt\n");
-                exit(EXIT_SUCCESS); // On meurt
-            }
-            tempActivitePere ++;
-            printf("\tTemps écoulé du père : %d\n", tempActivitePere);
+                //int targetedSonNumber = alea(size); //Remplacer val par la taille de la liste des fils
+                //int targetedSon = child_list[targetedSonNumber];
+                //printf("L'evil monkey va frapper le fils %d\n", targetedSon);
 
+                // Affichage des processus fils
+                /*
+                for (int j = 0; j < size; j++) {
+                    printf("%d\n", child_list[j]);
+                }
+                */
+                
+                //récupération du numéro du fils
+                int current_char = 9;
+                while(buf[current_char] != ' '){
+                    current_char++;
+                }
+                int number_size = current_char-8;
+                char* number = creerTableauChar(number_size);
+                for (int j = 0; j < number_size; j++) {
+                    number[j] = buf[8+j];
+                }
+                //sauvegarde de l'état du fils
+                int num_fils = atoi(number);
+                strncpy(save_children[num_fils-1], buf, BUF_SIZE);
+                free(number);
+                
+                // Arrête du père quand les fils sont arrêtés
+                if(0) {
+                    sleep(1); // On laisse les fils terminer
+                    close(tube[0]);// On ferme tube, les fils ne liront plus
+                    wait(NULL); // On attend la mort des fils
+                    printf("Le pere meurt\n");
+                    exit(EXIT_SUCCESS); // On meurt
+                }
+                tempActivitePere ++;
+                //printf("\tTemps écoulé du père : %d\n", tempActivitePere);
+            }
         }
+        freeTableau2DChar(save_children, nbLect);
     }
     // On incrémente nbLect pour savoir où on en est
     *numLect = *numLect + 1;
