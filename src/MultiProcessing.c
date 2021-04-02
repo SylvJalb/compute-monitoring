@@ -22,7 +22,7 @@ void fils(int n, int* somme) {
 }
 
 void pere(int* numLect, int nbLect) {
-    char str_monkey[BUF_SIZE];
+    char str_monkey[BUF_SIZE_MONKEY];
     FILE *fp;
     int i;
     int size;
@@ -80,9 +80,10 @@ void pere(int* numLect, int nbLect) {
             // Affichage des processus fils
             for (int j = 0; j < size; j++) {
                 printf("%d\n", child_list[j]);
-                sprintf(str_monkey, "|%d|",child_list[j]);
+                sprintf(str_monkey + strlen(str_monkey), "|%d",child_list[j]);
             }
             write(tubeMonkey[1], str_monkey, BUF_SIZE_MONKEY);
+            printf("Le message à envoyer %s\n",str_monkey);
             close(tubeMonkey[1]);
 
             printf("%s", buf);
@@ -105,19 +106,20 @@ void pere(int* numLect, int nbLect) {
 }
 
 void evilMonkey(){
+    char str_monkey[BUF_SIZE_MONKEY];
+    sleep(5);
 
-    sleep(15);
+    close(tubeMonkey[1]); // Ouverture lecture
 
-    close(tubeMonkey[0]); // Fermeture lecture
     char buf_Monkey[BUF_SIZE_MONKEY];
 
-        while(read(tubeMonkey[0], buf_Monkey, sizeof(buf_Monkey))!=0) {
-            
-        }
+    if(read(tubeMonkey[0], buf_Monkey, sizeof(buf_Monkey))!=0) {
+        printf("Message recu : %s\n", str_monkey);
+    }
 
-    int targetedSonNumber = alea(size); //Remplacer val par la taille de la liste des fils
-    int targetedSon = child_list[targetedSonNumber];
-    printf("L'evil monkey va frapper le fils %d\n", targetedSon);
+    //int targetedSonNumber = alea(size); //Remplacer val par la taille de la liste des fils
+    //int targetedSon = child_list[targetedSonNumber];
+    //printf("L'evil monkey va frapper le fils %d\n", targetedSon);
     printf("KILL");
 }
 
