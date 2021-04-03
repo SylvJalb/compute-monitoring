@@ -36,6 +36,15 @@ void userLecture(){
     }
 }
 
+void refreshing(){
+    close (tube[0]); // Fermeture lecture
+    char c[BUF_SIZE] = "  |";
+    while(1){
+        sleep(3);
+        write(tube[1], c, BUF_SIZE);
+    }
+}
+
 
 void pere(int* numLect, int nbLect) {
     FILE *fp;
@@ -62,6 +71,13 @@ void pere(int* numLect, int nbLect) {
             exit(EXIT_SUCCESS);
         }
 
+        // Création du processus qui calcul les 3 secondes à attendre pour afficher le moniteur
+        pid_bis = fork();
+        if(pid_bis == 0){
+            refreshing();
+            exit(EXIT_SUCCESS);
+        }
+
         int iterTimeHit = (alea(4))*2;
  
         printf("L'evil monkey va frapper à l'itération %d\n\n", iterTimeHit);
@@ -72,6 +88,7 @@ void pere(int* numLect, int nbLect) {
         char **save_children = creerTableau2DChar(nbLect, BUF_SIZE);
         char *sommes = creerTableauEntier(nbLect);
         char buf[BUF_SIZE];
+
         while(read(tube[0], buf, sizeof(buf))!=0) {
             if(buf[2] == '|') {
                 system("@cls||clear");
@@ -82,7 +99,7 @@ void pere(int* numLect, int nbLect) {
                     total_somme += sommes[numero_fils];
                 }
                 printf("La somme totale calculé est : %d\n\n", total_somme);
-                printf("Appuyez sur \"entrer\" pour actualiser le moniteur...");
+                printf("Appuyez sur \"entrer\" pour actualiser le moniteur...\n");
             }
             else {
                 // Exécution de la commande ps
