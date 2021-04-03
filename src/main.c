@@ -1,5 +1,8 @@
 #include "MultiProcessing.h"
+
+
 int main(int argc, char ** argv) {
+
     int numLect = 1; // Numéro des lecteurs
     int nbLect; // Nb de lecteur
     int nbEssai = 10; // Nb d'essai pour faire un fork au cas où ça rate
@@ -7,8 +10,14 @@ int main(int argc, char ** argv) {
     pid_t pid;
     assert(argc == 2);
     nbLect = atoi(argv[1]);
+
     if (pipe(tube) == -1) {
         perror("pipe");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pipe(tubeMonkey) == -1) {
+        perror("Pipe Monkey");
         exit(EXIT_FAILURE);
     }
     // Boucle que fait nbLect fois le père (au moins 1 fois)
@@ -30,4 +39,5 @@ int main(int argc, char ** argv) {
         }
     } while(pid != 0 && numLect <= nbLect);
     return 0;
+
 }
