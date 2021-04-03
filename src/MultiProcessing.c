@@ -21,12 +21,6 @@ void fils(int n, int* somme) {
     _exit(pid);
 }
 
-void evilMonkey(){
-    sleep(15);
-    //printf("KILL");
-}
-
-
 void userLecture(){
     close (tube[0]); // Fermeture lecture
     char c[BUF_SIZE] = "  |";
