@@ -8,6 +8,8 @@
 
 #define ERREUR_ALLOCATION 1
 
+int *creerTableauEntier(int int_taille);
+
 char *creerTableauChar(int taille);
 
 char **creerTableau2DChar(int tailleX, int tailleY);

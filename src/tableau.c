@@ -1,5 +1,24 @@
 #include "tableau.h"
 
+int *creerTableauEntier(int int_taille){
+  //DECLARATION DES VARIABLES
+  int *tint_tab; //le poiteur vers la premiere case du tableau
+
+  //ALLOCATION DE LA MEMOIRE
+  tint_tab = malloc(int_taille * sizeof(int));
+  //Si l'allocation c'est fini en echec
+  if(tint_tab == NULL){
+    //Avertir l'utilisateur
+    printf("Erreur d'allocation mémoire !");
+    //Quitter le programme avec un message d'erreur
+    exit(ERREUR_ALLOCATION);
+  }
+
+  //retourner l'addresse de la premiere case du tableau, soit : tint_tab
+  return(tint_tab);
+}
+
+
 char *creerTableauChar(int int_taille){
   //DECLARATION DES VARIABLES
   char *tchar_tab; //le poiteur vers la premiere case du tableau
