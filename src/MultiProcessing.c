@@ -58,13 +58,24 @@ void refreshing(){
 }
 
 
-int valueinarray(int value, int array[]) {
+int valueinarray(int value, int* array) {
     int i;
     for(i = 0; i <= sizeof(array) / sizeof(array[0]); i++) {
         if (array[i] == value)
             return 1;
     }
     return 0;
+}
+
+void erreur(const char * message){
+    perror(message);
+    exit(-1);
+}
+
+int alea(int taille){
+    int res;
+    res = rand() % taille;
+    return res;
 }
 
 
@@ -97,6 +108,126 @@ void update_child_list(int* child_list, int no_kill[3]) {
     }
 
     pclose(fp);
+}
+
+void evilMonkey(){
+    // On initialise le générateur aléatoire
+    srand( time( NULL ) );
+    // Variable aléatoire : temps de lancement du evil monkey (le x de la consigne)
+    int sleepTime = 5 + alea(10);
+    printf("\n\nJe vais kill dans %d sec !\n\n", sleepTime);
+    //printf("Hmmm... je dors pendant %d secondes\n", sleepTime);
+    sleep(sleepTime);
+
+    close(tubeMonkey[1]); // Ouverture du pipe Père -> Evil Monkey lecture
+
+    int compteur = 1; //Compteur pour lancer la lecture du pipe uniquement sur les dernières informations reçues (toutes les mêmes)
+    int x = 0; //element extrait de message du pipe
+    int passage = 0; //permet de savoir si on a déjà iniatialisé le nombre de processus.
+    int *elements; //tableau des fils (leur PID)
+    char buf_Monkey[BUF_SIZE_MONKEY]; //message (char) stocké dans le buffer du Evil Monkey
+    int size = 0; //taille du tableau élements (ou nombre de processus)
+    int reponse; //variable de retour pour le SIGKILL
+    void erreur(const char *); //void de gestion d'erreur
+    char delim[] = "-"; //delimiter utilisé dans le message du pipe (séparant les infos envoyées par le père)
+
+    int lecture;
+    time_t depart = time(NULL);
+    time_t courant;
+
+    while (1) {
+        // Mise à jour du temps courant
+        courant = time(NULL);
+        if (difftime(courant, depart) >= (double) sleepTime) {
+            lecture = 0;
+            write(tube[1], "!", BUF_SIZE);
+            usleep(1000000);
+            while (lecture == 0 && read(tubeMonkey[0], buf_Monkey, sizeof(buf_Monkey))!=0) { //ouverture en lecture du pipe
+                char *ptr = strtok(buf_Monkey,delim);
+                while(ptr != NULL){
+
+                    x = atoi(ptr);
+
+                    if(passage == 0){
+                        elements = creerTableauEntier(x);
+                        size = x;
+                    }
+                    else{
+                        elements[passage-1] = x;
+                    }
+                    passage ++;
+                    //printf("\t'%s'\n",ptr);
+                    ptr = strtok(NULL,delim);
+                }
+                passage = 0;
+
+                for(int i=0; i<size; i++){
+                    printf("element : %d %d\n ", elements[i], i);
+                }
+                compteur = 1;
+
+                int targetedSonNumber = alea(size);
+                int targetedSon = elements[targetedSonNumber];
+
+                printf("\nL'evil monkey va frapper le fils %d !\n", targetedSon);
+                if ((reponse = kill(targetedSon,SIGTERM)) == -1)
+                    erreur("SIGKILL kill");
+
+                printf("Le processus %d a été tué !\n",targetedSon);
+
+                if(size>0){
+                    free(elements);
+                }
+
+                // Prochain temps avant de kill
+                sleepTime = 5 + alea(10);
+                printf("\n\nJe vais kill dans %d sec !\n\n", sleepTime);
+
+                // Réinitialisation du temps de départ
+                depart = time(NULL);
+
+                lecture++;
+            }
+        }
+        usleep(500000);
+    }
+    close(tubeMonkey[0]);
+}
+
+void fils(int n, int depart) {
+    struct sigaction act;
+    act.sa_sigaction = &hdl;
+    act.sa_flags = SA_SIGINFO;
+    short pid = getpid();
+    
+    if (sigaction(SIGTERM, &act, NULL) < 0) {
+        perror("sigaction");
+        close(tube[1]);
+        _exit(pid);
+    }
+    
+
+    int somme = depart;
+    char str[BUF_SIZE];
+    int tempActivite = 0;
+    printf("Fils n°%d\t(mon id -> %d ,  id de mon père -> %d)\n", n, pid, getppid());
+    close (tube[0]); // Fermeture lecture
+    while(1) {
+        somme = somme + 1;
+        tempActivite ++;
+        sleep(1);
+        if(tempActivite%2 == 0){
+            sprintf(str, "Fils n°%d :\n\tsomme -> %d \n\ttemp d'activité -> %d sec\n\tpid %d\n", n, somme, tempActivite, getpid());
+            if (write(tube[1], str, BUF_SIZE) == -1) {
+                perror("write\n");
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+    // Quand il n'y a plus rien à lire : arrêt fils
+    printf("Le fils n°%d (id: %d) meurt...\n", n, pid);
+    close(tube[1]);
+    _exit(pid);
 }
 
 
@@ -139,22 +270,30 @@ void pere(int* numLect, int nbLect) {
 
         close(tubeMonkey[0]); // Fermeture lecture
         char **save_children = creerTableau2DChar(nbLect, BUF_SIZE);
-        char *sommes = creerTableauEntier(nbLect);
+        int *sommes = creerTableauEntier(nbLect);
         char buf[BUF_SIZE];
+        int total_somme = 0;
 
         while(read(tube[0], buf, sizeof(buf))!=0) {
             if(buf[2] == '|') {
+                //clear de l'écran
                 system("@cls||clear");
+                //maj de la liste des fils
                 update_child_list(child_list, no_kill);
                 printf("Voici l'état des %d fils :\n\n", nbLect);
-                int total_somme = 0;
+                //initialisation de la somme totale
+                total_somme = 0;
+                //parcour de tous les fils
                 for(int numero_fils = 0; numero_fils < nbLect; numero_fils++){
+                    //affichage de l'état du fils courant
                     printf("%s\n", save_children[numero_fils]);
+                    //calcul de la somme total
                     total_somme += sommes[numero_fils];
                 }
                 printf("La somme totale calculé est : %d\n\n", total_somme);
-                printf("Appuyez sur \"entrer\" pour actualiser le moniteur...\n");
+                printf("Appuyez sur \"entrée\" pour actualiser le moniteur...\n");
             } else if (buf[0] == '!') {
+                //maj de la liste des fils
                 update_child_list(child_list, no_kill);
 
                 sprintf(str_monkey, "%d",nbLect);
@@ -184,25 +323,51 @@ void pere(int* numLect, int nbLect) {
                 free(number);
 
                 //récupération de la somme
-                current_char = 23;
-                while(buf[current_char] != ' '){
-                    current_char++;
+                int number_somme = 0;
+                char *ptr = strtok(buf, delim);
+                int k = 0;
+                while(ptr != NULL){
+                    if (k == 4) {
+                        sommes[num_fils-1] = atoi(ptr);
+                    }
+                    ptr = strtok(NULL,delim);
+                    k++;
                 }
-                number_size = current_char-22;
-                number = creerTableauChar(number_size);
-                for (int j = 0; j < number_size; j++) {
-                    number[j] = buf[22+j];
+                free(number_somme);
+
+                //calcul de la somme totale
+                total_somme = 0;
+                for(int numero_fils = 0; numero_fils < nbLect; numero_fils++){
+                    total_somme += sommes[numero_fils];
                 }
-                //sauvegarde de la somme
-                sommes[num_fils-1]= atoi(number);
-                free(number);
                 
                 // Arrête du père quand les fils sont arrêtés
-                if(0) {
-                    sleep(1); // On laisse les fils terminer
+                if(total_somme >= BORNE_SUP) {
                     close(tube[0]);// On ferme tube, les fils ne liront plus
-                    wait(NULL); // On attend la mort des fils
-                    printf("Le pere meurt\n");
+                    //clear de l'écran
+                    system("@cls||clear");
+                    //maj de la liste des fils
+                    update_child_list(child_list, no_kill);
+                    printf("Voici l'état des %d fils à la fin :\n\n", nbLect);
+                    //initialisation de la somme totale
+                    total_somme = 0;
+                    //parcour de tous les fils
+                    for(int numero_fils = 0; numero_fils < nbLect; numero_fils++){
+                        //affichage de l'état du fils courant
+                        printf("%s\n", save_children[numero_fils]);
+                        //calcul de la somme total
+                        total_somme += sommes[numero_fils];
+                    }
+                    printf("La somme totale calculé est : %d\n\nFIN DU PROGRAMME\n", total_somme);
+                    freeTableau2DChar(save_children, nbLect);
+                    free(sommes);
+                    free(child_list);
+                    for(int j = 0; j < nbLect ; j++){
+                        kill(child_list[j], SIGTERM);
+                    }
+                    for(int j = 0 ; j < sizeof(no_kill) ; j++){
+                        kill(no_kill[j], SIGTERM);
+                    }
                     exit(EXIT_SUCCESS); // On meurt
                 }
                 tempActivitePere ++;
@@ -262,9 +427,6 @@ void pere(int* numLect, int nbLect) {
                 
             }
         }
-        freeTableau2DChar(save_children, nbLect);
-        free(sommes);
-        free(child_list);
     }
     // On incrémente nbLect pour savoir où on en est
     *numLect = *numLect + 1;
