@@ -1,4 +1,6 @@
 #include "MultiProcessing.h"
+
+
 int main(int argc, char ** argv) {
     system("@cls||clear");
     int numLect = 1; // Numéro des lecteurs
@@ -8,8 +10,14 @@ int main(int argc, char ** argv) {
     pid_t pid;
     assert(argc == 2);
     nbLect = atoi(argv[1]);
+
     if (pipe(tube) == -1) {
         perror("pipe");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pipe(tubeMonkey) == -1) {
+        perror("Pipe Monkey");
         exit(EXIT_FAILURE);
     }
     // Boucle que fait nbLect fois le père (au moins 1 fois)
@@ -26,9 +34,10 @@ int main(int argc, char ** argv) {
         }
         // Action des fils
         else if (pid == 0) {
-            int somme = 0;
-            fils(numLect, &somme);
+            int depart = BORNE_INF / nbLect;
+            fils(numLect, depart);
         }
     } while(pid != 0 && numLect <= nbLect);
     return 0;
+
 }

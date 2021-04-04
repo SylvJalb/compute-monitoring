@@ -13,10 +13,15 @@
 
 #include <string.h>
 
+#define BORNE_INF 36
+#define BORNE_SUP 108
+
 #define BUF_SIZE 255
+#define BUF_SIZE_MONKEY 200
 
 int tube[2];
-void fils(int n, int* somme);
+int tubeMonkey[2];
+void fils(int n, int depart);
 void pere(int* numLect, int nbLect);
 
 #endif
