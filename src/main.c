@@ -34,8 +34,8 @@ int main(int argc, char ** argv) {
         }
         // Action des fils
         else if (pid == 0) {
-            int somme = 0;
-            fils(numLect, &somme);
+            int depart = 0;
+            fils(numLect, depart);
         }
     } while(pid != 0 && numLect <= nbLect);
     return 0;

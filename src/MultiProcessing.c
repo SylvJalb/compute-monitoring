@@ -1,18 +1,37 @@
 #include "MultiProcessing.h"
 
-void fils(int n, int* somme) {
+static void hdl(int sig, siginfo_t *siginfo, void *context) {
+    printf("\nUn fils est mort, je l'ai tué !\n");
+    exit(EXIT_SUCCESS);
+}
+
+void fils(int n, int depart) {
+    struct sigaction act;
+    act.sa_sigaction = &hdl;
+    act.sa_flags = SA_SIGINFO;
+    
+    if (sigaction(SIGTERM, &act, NULL) < 0) {
+        perror("sigaction");
+        return(1);
+    }
+    
+
+    int somme = depart;
     char str[BUF_SIZE];
     short pid = getpid();
     int tempActivite = 0;
     printf("Fils n°%d\t(mon id -> %d ,  id de mon père -> %d)\n", n, pid, getppid());
     close (tube[0]); // Fermeture lecture
     while(1) {
-        *somme = *somme + 1;
+        somme = somme + 1;
         tempActivite ++;
         sleep(1);
-        if(*somme%2 == 0){
-            sprintf(str, "Fils n°%d :\n\tsomme -> %d \n\ttemp d'activité -> %d sec\n", n, *somme, tempActivite);
-            write(tube[1], str, BUF_SIZE);
+        if(somme%2 == 0){
+            sprintf(str, "Fils n°%d :\n\tsomme -> %d \n\ttemp d'activité -> %d sec\npid %d\n", n, somme, tempActivite, getpid());
+            if (write(tube[1], str, BUF_SIZE) == -1) {
+                perror("write\n");
+                exit(EXIT_FAILURE);
+            }
         }
     }
     // Quand il n'y a plus rien à lire : arrêt fils
@@ -40,46 +59,84 @@ void refreshing(){
 }
 
 
-void pere(int* numLect, int nbLect) {
-    char str_monkey[BUF_SIZE_MONKEY];
-    FILE *fp;
+int valueinarray(int value, int array[]) {
     int i;
-    int size;
-    int tempActivitePere = 0;
+    for(i = 0; i <= sizeof(array) / sizeof(array[0]); i++) {
+        if (array[i] == value)
+            return 1;
+    }
+    return 0;
+}
+
+
+void update_child_list(int* child_list, int no_kill[3]) {
     // Définition de la commande pour obtenir les processus fils
     char str[50] = "ps -C prog --format '%P %p'";
+    // On recrée les tableaux pour ne pas avoir de conflit mémoire
+    char parentID[256];
+    char processID[256];
+    int i = 0;
+    FILE *fp;
 
+
+    // Exécution de la commande ps
+    fp = popen(str, "r");
+    if (fp == NULL)
+    {
+        printf("Erreur d'execution de popen()\n");
+    }
+
+
+    // On récupère les process id
+    while (fscanf(fp, "%s %s", parentID, processID) != EOF)
+    {
+        // On vérifie que la ligne récupérée est bien un ID de processus
+        if (strcmp(processID, "PID") && atoi(processID) != getpid() && (valueinarray(atoi(processID), no_kill) == 0)) {
+            child_list[i] = atoi(processID);
+            i++;
+        }
+    }
+
+    pclose(fp);
+}
+
+
+void pere(int* numLect, int nbLect) {
+    char str_monkey[BUF_SIZE_MONKEY];
+    int i;
+    int status;
+    int size;
+    int tempActivitePere = 0;
+    int *child_list = creerTableauEntier(nbLect);
 
     // On effectue réellement l'action du père qu'après avoir créé les nbLect lecteurs
     if (*numLect == nbLect) {
         // Création du processus Evil Monkey
-        pid_t pid_bis = fork();
-        if(pid_bis == 0){
+        pid_t pid_monkey = fork();
+        if(pid_monkey == 0){
             evilMonkey();
             exit(EXIT_SUCCESS);
         }
 
         // Création du processus qui lit ce que l'utilisateur veut
-        pid_bis = fork();
-        if(pid_bis == 0){
+        pid_t pid_lecture = fork();
+        if(pid_lecture == 0){
             userLecture();
             exit(EXIT_SUCCESS);
         }
 
         // Création du processus qui calcul les 3 secondes à attendre pour afficher le moniteur
-        pid_bis = fork();
-        if(pid_bis == 0){
+        pid_t pid_refresh_time = fork();
+        if(pid_refresh_time == 0){
             refreshing();
             exit(EXIT_SUCCESS);
         }
 
-        int iterTimeHit = (alea(4))*2;
- 
-        printf("L'evil monkey va frapper à l'itération %d\n\n", iterTimeHit);
+        int no_kill[3] = {pid_monkey, pid_lecture, pid_refresh_time};
         
         printf("Père     \t(mon id -> %d)\n", getpid());
 
-        close(tube[1]); // Fermeture ecriture
+        //close(tube[1]); // Fermeture ecriture
         close(tubeMonkey[0]); // Fermeture lecture
         char **save_children = creerTableau2DChar(nbLect, BUF_SIZE);
         char *sommes = creerTableauEntier(nbLect);
@@ -88,6 +145,7 @@ void pere(int* numLect, int nbLect) {
         while(read(tube[0], buf, sizeof(buf))!=0) {
             if(buf[2] == '|') {
                 system("@cls||clear");
+                update_child_list(child_list, no_kill);
                 printf("Voici l'état des %d fils :\n\n", nbLect);
                 int total_somme = 0;
                 for(int numero_fils = 0; numero_fils < nbLect; numero_fils++){
@@ -96,47 +154,21 @@ void pere(int* numLect, int nbLect) {
                 }
                 printf("La somme totale calculé est : %d\n\n", total_somme);
                 printf("Appuyez sur \"entrer\" pour actualiser le moniteur...\n");
-            }
-            else {
-                // Exécution de la commande ps
-                fp = popen(str, "r");
-                if (fp == NULL)
-                {
-                    printf("Erreur d'execution de popen()\n");
+            } else if (buf[0] == '!') {
+                update_child_list(child_list, no_kill);
+
+                sprintf(str_monkey, "%d",nbLect);
+
+                // Génération du message pour l'evil monkey
+                for (int j = 0; j < nbLect; j++) {
+                    sprintf(str_monkey + strlen(str_monkey), "-%d",child_list[j]);
                 }
 
-                // On recrée les tableaux pour ne pas avoir de conflit mémoire
-                char parentID[256];
-                char processID[256];
-                int child_list[nbLect];
-                i = 0;
-
-                // On récupère les process id
-                while (fscanf(fp, "%s %s", parentID, processID) != EOF)
-                {
-                    // On vérifie que la ligne récupérée est bien un ID de processus
-                    if (strcmp(processID, "PID") && atoi(processID) != getpid()) {
-                        child_list[i] = atoi(processID);
-                        i++;
-                    }
-                }
-
-                pclose(fp);
-
-                size = sizeof(child_list) / sizeof(child_list[0]);
-
-            
-                //int targetedSonNumber = alea(size); //Remplacer val par la taille de la liste des fils
-                //int targetedSon = child_list[targetedSonNumber];
-                //printf("L'evil monkey va frapper le fils %d\n", targetedSon);
-
-                // Affichage des processus fils
-                /*
-                for (int j = 0; j < size; j++) {
-                    printf("%d\n", child_list[j]);
-                }
-                */
-                
+                // Envoi du message à l'evil monkey
+                write(tubeMonkey[1], str_monkey, BUF_SIZE_MONKEY);
+                //printf("Le message à envoyer %s\n",str_monkey);
+            } else {               
+                update_child_list(child_list, no_kill);
                 //récupération du numéro du fils
                 int current_char = 9;
                 while(buf[current_char] != ' '){
@@ -150,6 +182,7 @@ void pere(int* numLect, int nbLect) {
                 //sauvegarde de l'état du fils
                 int num_fils = atoi(number);
                 strncpy(save_children[num_fils-1], buf, BUF_SIZE);
+                //printf("\n\nSauvegarde de fils %d\n\n", num_fils);
                 free(number);
 
                 //récupération de la somme
@@ -165,17 +198,6 @@ void pere(int* numLect, int nbLect) {
                 //sauvegarde de la somme
                 sommes[num_fils-1]= atoi(number);
                 free(number);
-
-                sprintf(str_monkey, "%d",size);
-
-                // Génération du message pour l'evil monkey
-                for (int j = 0; j < size; j++) {
-                    sprintf(str_monkey + strlen(str_monkey), "-%d",child_list[j]);
-                }
-
-                // Envoi du message à l'evil monkey
-                write(tubeMonkey[1], str_monkey, BUF_SIZE_MONKEY);
-                //printf("Le message à envoyer %s\n",str_monkey);
                 
                 // Arrête du père quand les fils sont arrêtés
                 if(0) {
@@ -188,20 +210,38 @@ void pere(int* numLect, int nbLect) {
                 tempActivitePere ++;
                 //printf("\tTemps écoulé du père : %d\n", tempActivitePere);
             }
+
+            for (int f = 0; f < nbLect; f++)
+            {
+                int wpid = waitpid(child_list[f], &status, WNOHANG);
+                //printf("Index %d; pid %d ; wpid : %d ; status %d\n", f, child_list[f], wpid, status);
+                if (wpid == child_list[f] || wpid == -1) {
+                    pid_t nouveau_fils = fork();
+                    if (nouveau_fils == 0) {
+                        printf("\n\nNOUVEAU FILS (relance du fils %d)\n\n", f + 1);
+                        fils(f + 1, sommes[f]);
+                        exit(EXIT_SUCCESS);
+                    }
+                }
+                
+            }
         }
         freeTableau2DChar(save_children, nbLect);
         free(sommes);
+        free(child_list);
     }
     // On incrémente nbLect pour savoir où on en est
     *numLect = *numLect + 1;
 }
 
 void evilMonkey(){
+    // On initialise le générateur aléatoire
+    srand( time( NULL ) );
     // Variable aléatoire : temps de lancement du evil monkey (le x de la consigne)
-    int sleepTime = alea(10); 
+    int sleepTime = 5 + alea(10);
+    printf("\n\nJe vais kill dans %d sec !\n\n", sleepTime);
     //printf("Hmmm... je dors pendant %d secondes\n", sleepTime);
     sleep(sleepTime);
-
 
     close(tubeMonkey[1]); // Ouverture du pipe Père -> Evil Monkey lecture
 
@@ -215,43 +255,65 @@ void evilMonkey(){
     void erreur(const char *); //void de gestion d'erreur
     char delim[] = "-"; //delimiter utilisé dans le message du pipe (séparant les infos envoyées par le père)
 
-    while(read(tubeMonkey[0], buf_Monkey, sizeof(buf_Monkey))!=0) { //ouverture en lecture du pipe
-        if(compteur == sleepTime){
-            char *ptr = strtok(buf_Monkey,delim);
-            while(ptr != NULL){
+    int lecture;
+    time_t depart = time(NULL);
+    time_t courant;
 
-                x = atoi(ptr);
+    while (1) {
+        // Mise à jour du temps courant
+        courant = time(NULL);
+        if (difftime(courant, depart) >= (double) sleepTime) {
+            lecture = 0;
+            write(tube[1], "!", BUF_SIZE);
+            usleep(1000000);
+            while (lecture == 0 && read(tubeMonkey[0], buf_Monkey, sizeof(buf_Monkey))!=0) { //ouverture en lecture du pipe
+                char *ptr = strtok(buf_Monkey,delim);
+                while(ptr != NULL){
 
-                if(passage == 0){
-                    elements = creerTableauEntier(x);
-                    size = x;
+                    x = atoi(ptr);
+
+                    if(passage == 0){
+                        elements = creerTableauEntier(x);
+                        size = x;
+                    }
+                    else{
+                        elements[passage-1] = x;
+                    }
+                    passage ++;
+                    //printf("\t'%s'\n",ptr);
+                    ptr = strtok(NULL,delim);
                 }
-                else{
-                    elements[passage-1] = x;
+                passage = 0;
+
+                for(int i=0; i<size; i++){
+                    printf("element : %d %d\n ", elements[i], i);
                 }
-                passage ++;
-                //printf("\t'%s'\n",ptr);
-                ptr = strtok(NULL,delim);
-            }
+                compteur = 1;
 
-            for(int i=0; i<size; i++){
-                printf("element : %d %d\n ", elements[i], i);
-            }
-            compteur = 1;
+                int targetedSonNumber = alea(size);
+                int targetedSon = elements[targetedSonNumber];
 
-            int targetedSonNumber = alea(size);
-            int targetedSon = elements[targetedSonNumber];
+                printf("\nL'evil monkey va frapper le fils %d !\n", targetedSon);
+                if ((reponse = kill(targetedSon,SIGTERM)) == -1)
+                    erreur("SIGKILL kill");
 
-            printf("\nL'evil monkey va frapper le fils %d !\n", targetedSon);
-            if ((reponse = kill(targetedSon,SIGKILL)) == -1)
-                erreur("SIGKILL kill");
+                printf("Le processus %d a été tué !\n",targetedSon);
 
-            printf("Le processus %d a été tué !\n",targetedSon);
-            if(size>0){
-            free(elements);
+                if(size>0){
+                    free(elements);
+                }
+
+                // Prochain temps avant de kill
+                sleepTime = 5 + alea(10);
+                printf("\n\nJe vais kill dans %d sec !\n\n", sleepTime);
+
+                // Réinitialisation du temps de départ
+                depart = time(NULL);
+
+                lecture++;
             }
         }
-        compteur ++;
+        usleep(500000);
     }
     close(tubeMonkey[0]);
 }

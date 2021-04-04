@@ -18,7 +18,7 @@
 
 int tube[2];
 int tubeMonkey[2];
-void fils(int n, int* somme);
+void fils(int n, int depart);
 void pere(int* numLect, int nbLect);
 
 #endif
