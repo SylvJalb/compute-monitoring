@@ -34,7 +34,7 @@ int main(int argc, char ** argv) {
         }
         // Action des fils
         else if (pid == 0) {
-            int depart = 0;
+            int depart = BORNE_INF / nbLect;
             fils(numLect, depart);
         }
     } while(pid != 0 && numLect <= nbLect);
