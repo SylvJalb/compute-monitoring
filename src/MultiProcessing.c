@@ -101,7 +101,7 @@ void evilMonkey(){
     while (1) {
         // Mise à jour du temps courant
         courant = time(NULL);
-        if (difftime(courant, depart) >= (double) sleepTime) {
+        if (difftime(courant, depart) >= (double) sleepTime - 1) {
             lecture = 0;
             write(tube[1], "!", BUF_SIZE);
             usleep(1000000);
