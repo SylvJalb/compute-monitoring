@@ -94,47 +94,47 @@ void evilMonkey(){
     void erreur(const char *); //void de gestion d'erreur
     char delim[] = "-"; //delimiter utilisé dans le message du pipe (séparant les infos envoyées par le père)
 
-    int lecture;
-    time_t depart = time(NULL);
-    time_t courant;
+    int lecture; // indicateur de lecture pour lire le contenu lorsqu'il y en a
+    time_t depart = time(NULL); //valeur de timing pour la synchronisation (départ)
+    time_t courant; //valeur de timing pour la synchronisation (courant)
 
     while (1) {
         // Mise à jour du temps courant
         courant = time(NULL);
-        if (difftime(courant, depart) >= (double) sleepTime - 1) {
-            lecture = 0;
+        if (difftime(courant, depart) >= (double) sleepTime) { //synchronisation avec le temps courant
+            lecture = 0; 
             write(tube[1], "!", BUF_SIZE);
-            usleep(1000000);
+            usleep(1000000); //sleep en microseconde
             while (lecture == 0 && read(tubeMonkey[0], buf_Monkey, sizeof(buf_Monkey))!=0) { //ouverture en lecture du pipe
-                char *ptr = strtok(buf_Monkey,delim);
-                while(ptr != NULL){
+                char *ptr = strtok(buf_Monkey,delim); //Initialisation tableau de char et division de cette chaine grâce au délimiteur
+                while(ptr != NULL){ //Tant qu'il y a des "sous chaines" à lire
 
-                    x = atoi(ptr);
+                    x = atoi(ptr); //Conversion de la chaine en int
 
-                    if(passage == 0){
-                        elements = creerTableauEntier(x);
-                        size = x;
+                    if(passage == 0){ //Premier passage, on veut récupérer uniquement la première valeur (nombre de processus)
+                        elements = creerTableauEntier(x); //On initiatlise un tableau pour stocker les PID des fils
+                        size = x; //On sauvegarde la taille (qui est le nombre de processus récupéré)
                     }
                     else{
-                        elements[passage-1] = x;
+                        elements[passage-1] = x; //sinon, outre le premier élément, tous les autres sont les PIDs des fils.
                     }
-                    passage ++;
+                    passage ++; // Incrémentation du passage qui sert d'indice pour le tableau éléments.
                     //printf("\t'%s'\n",ptr);
                     ptr = strtok(NULL,delim);
                 }
-                passage = 0;
+                passage = 0; // Réinitialisation pour le prochain appel du evil monkey
 
-                int targetedSonNumber = alea(size);
-                int targetedSon = elements[targetedSonNumber];
+                int targetedSonNumber = alea(size); //Nombre aléatoire compris entre 0 et le nombre de processus
+                int targetedSon = elements[targetedSonNumber]; //PID du fils visé par Evil Monkey
 
                 // L'evil monkey va frapper le fils
-                if ((reponse = kill(targetedSon,SIGTERM)) == -1)
+                if ((reponse = kill(targetedSon,SIGTERM)) == -1) //kill du fils visé
                     erreur("SIGTERM");
 
                 printf("\n\n/!\\\tLe processus %d a été tué !\t/!\\\n\n",targetedSon);
 
                 if(size>0){
-                    free(elements);
+                    free(elements); // On libère éléments
                 }
 
                 // Prochain temps avant de kill
@@ -147,9 +147,9 @@ void evilMonkey(){
                 lecture++;
             }
         }
-        usleep(500000);
+        usleep(500000); //sleep (en microseconde pour éviter le spam)
     }
-    close(tubeMonkey[0]);
+    close(tubeMonkey[0]); //fermeture descripteur
 }
 
 
