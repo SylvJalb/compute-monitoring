@@ -1,7 +1,6 @@
 #include "MultiProcessing.h"
 
 static void hdl(int sig, siginfo_t *siginfo, void *context) {
-    printf("\nUn fils est mort, je l'ai tué !\n");
     exit(EXIT_SUCCESS);
 }
 
@@ -27,7 +26,7 @@ void fils(int n, int depart) {
         tempActivite ++;
         sleep(1);
         if(somme%2 == 0){
-            sprintf(str, "Fils n°%d :\n\tsomme -> %d \n\ttemp d'activité -> %d sec\npid %d\n", n, somme, tempActivite, getpid());
+            sprintf(str, "Fils n°%d :\n\tsomme -> %d \n\ttemps d'activité -> %d sec\n\tpid -> %d\n", n, somme, tempActivite, getpid());
             if (write(tube[1], str, BUF_SIZE) == -1) {
                 perror("write\n");
                 exit(EXIT_FAILURE);
@@ -108,6 +107,8 @@ void pere(int* numLect, int nbLect) {
     int size;
     int tempActivitePere = 0;
     int *child_list = creerTableauEntier(nbLect);
+    int pid_fils;
+    char delim[] = " ";
 
     // On effectue réellement l'action du père qu'après avoir créé les nbLect lecteurs
     if (*numLect == nbLect) {
@@ -125,7 +126,7 @@ void pere(int* numLect, int nbLect) {
             exit(EXIT_SUCCESS);
         }
 
-        // Création du processus qui calcul les 3 secondes à attendre pour afficher le moniteur
+        // Création du processus qui calcule les 3 secondes à attendre pour afficher le moniteur
         pid_t pid_refresh_time = fork();
         if(pid_refresh_time == 0){
             refreshing();
@@ -136,7 +137,6 @@ void pere(int* numLect, int nbLect) {
         
         printf("Père     \t(mon id -> %d)\n", getpid());
 
-        //close(tube[1]); // Fermeture ecriture
         close(tubeMonkey[0]); // Fermeture lecture
         char **save_children = creerTableau2DChar(nbLect, BUF_SIZE);
         char *sommes = creerTableauEntier(nbLect);
@@ -166,7 +166,6 @@ void pere(int* numLect, int nbLect) {
 
                 // Envoi du message à l'evil monkey
                 write(tubeMonkey[1], str_monkey, BUF_SIZE_MONKEY);
-                //printf("Le message à envoyer %s\n",str_monkey);
             } else {               
                 update_child_list(child_list, no_kill);
                 //récupération du numéro du fils
@@ -182,7 +181,6 @@ void pere(int* numLect, int nbLect) {
                 //sauvegarde de l'état du fils
                 int num_fils = atoi(number);
                 strncpy(save_children[num_fils-1], buf, BUF_SIZE);
-                //printf("\n\nSauvegarde de fils %d\n\n", num_fils);
                 free(number);
 
                 //récupération de la somme
@@ -215,11 +213,49 @@ void pere(int* numLect, int nbLect) {
             {
                 int wpid = waitpid(child_list[f], &status, WNOHANG);
                 //printf("Index %d; pid %d ; wpid : %d ; status %d\n", f, child_list[f], wpid, status);
-                if (wpid == child_list[f] || wpid == -1) {
+                if (wpid == child_list[f]) {
+                    i = 0;
+                    int pid_fils;
+                    int num_fils;
+                    do
+                    {
+                        char* tmp_str = malloc(BUF_SIZE * sizeof(char));
+                        strncpy(tmp_str, save_children[i], BUF_SIZE);
+
+                        int longueur_str = strlen(tmp_str);
+
+                        //récupération du numéro du fils
+                        int current_char = 9;
+                        while(tmp_str[current_char] != ' '){
+                            current_char++;
+                        }
+                        int number_size = current_char-8;
+
+                        char* number = creerTableauChar(number_size);
+                        for (int j = 0; j < number_size; j++) {
+                            number[j] = tmp_str[8+j];
+                        }
+                        //sauvegarde du numero du fils
+                        num_fils = atoi(number);
+                        free(number);
+
+                        char *ptr = strtok(tmp_str, delim);
+                        int k = 0;
+                        while(ptr != NULL){
+                            if (k == 11) {
+                                pid_fils = atoi(ptr);
+                            }
+                            ptr = strtok(NULL,delim);
+                            k++;
+                        }
+                        free(tmp_str);
+                        i++;
+                    } while (pid_fils != wpid);
+                                        
                     pid_t nouveau_fils = fork();
                     if (nouveau_fils == 0) {
-                        printf("\n\nNOUVEAU FILS (relance du fils %d)\n\n", f + 1);
-                        fils(f + 1, sommes[f]);
+                        printf("\nNOUVEAU FILS (relance du fils %d)\n\n", num_fils);
+                        fils(num_fils, sommes[f]);
                         exit(EXIT_SUCCESS);
                     }
                 }
@@ -285,9 +321,6 @@ void evilMonkey(){
                 }
                 passage = 0;
 
-                for(int i=0; i<size; i++){
-                    printf("element : %d %d\n ", elements[i], i);
-                }
                 compteur = 1;
 
                 int targetedSonNumber = alea(size);
@@ -295,7 +328,7 @@ void evilMonkey(){
 
                 printf("\nL'evil monkey va frapper le fils %d !\n", targetedSon);
                 if ((reponse = kill(targetedSon,SIGTERM)) == -1)
-                    erreur("SIGKILL kill");
+                    erreur("SIGTERM");
 
                 printf("Le processus %d a été tué !\n",targetedSon);
 
